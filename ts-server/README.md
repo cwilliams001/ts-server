@@ -15,7 +15,7 @@ This project provides a simple and secure way to share files over the internet u
 - Python 3.6+
 - Tailscale installed and configured on your system
 - Tailscale Funnel feature enabled for your account
-- Must ran as `sudo` because of tailscale funnel permissions
+- Must ran as `sudo` because of tailscale funnel permissions or run `'tailscale up --operator=$USER'` to not require root.`
 
 ## Installation
 
