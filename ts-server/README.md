@@ -1,7 +1,3 @@
-Got it! Let's make the README more **user-friendly** and **organized** with clearer sections, concise explanations, and examples. We'll structure it to provide a quick overview of usage, features, and common scenarios (like file serving/uploading with or without authentication), keeping in mind both simplicity and completeness.
-
----
-
 # Secure File Sharing and Uploads with Tailscale Funnel
 
 This project provides a simple and secure way to serve files and accept file uploads over the internet using Python's built-in HTTP server and **Tailscale Funnel**. Optional authentication allows restricted access to prevent unauthorized file downloads and uploads.
