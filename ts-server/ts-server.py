@@ -11,7 +11,9 @@ import string
 import argparse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from functools import partial
+import cgi
 
+# Generate a random password for basic authentication
 def generate_password(length=12):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for i in range(length))
@@ -40,7 +42,57 @@ class AuthHandler(SimpleHTTPRequestHandler):
                 self.do_AUTHHEAD()
                 self.wfile.write(b'Invalid credentials')
                 return
-        return SimpleHTTPRequestHandler.do_GET(self)
+        super().do_GET()
+
+    def sanitize_filename(self, filename):
+        # Remove any dangerous characters or directories to prevent directory traversal attacks
+        return os.path.basename(filename)
+
+    def do_POST(self):
+        # Check authentication if enabled
+        if self.use_auth:
+            auth_header = self.headers.get('Authorization')
+            if auth_header is None or not self.authenticate(auth_header):
+                self.do_AUTHHEAD()
+                self.wfile.write(b'Authentication required')
+                return
+
+        # Handle multipart form (file upload)
+        content_type = self.headers['Content-Type']
+        
+        if content_type and 'multipart/form-data' in content_type:
+            # Parse multipart/form-data POST request
+            form = cgi.FieldStorage(
+                fp=self.rfile, 
+                headers=self.headers,
+                environ={'REQUEST_METHOD': 'POST'}
+            )
+
+            # Check each part of the form (each file or field)
+            for field in form.keys():
+                field_item = form[field]
+                
+                # If it's a file in the form data (not a simple text input)
+                if field_item.filename:
+                    original_filename = self.sanitize_filename(field_item.filename)
+                    file_data = field_item.file.read()
+
+                    # Saving the uploaded file with its original name
+                    with open(original_filename, 'wb') as f:
+                        f.write(file_data)
+
+                    print(f"Received file '{original_filename}' and saved it.")
+
+                    # Respond to the client
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(f"File '{original_filename}' received and saved.\n".encode('utf-8'))
+        else:
+            self.send_response(400)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write("Content-Type must be multipart/form-data\n".encode('utf-8'))
 
     def authenticate(self, auth_header):
         auth_decoded = base64.b64decode(auth_header.split()[1]).decode('ascii')
@@ -55,9 +107,9 @@ def run_server(port, use_auth, password=None):
 
 def run_funnel(port):
     try:
-        process = subprocess.Popen(['tailscale', 'funnel', str(port)], 
-                                   stdout=subprocess.PIPE, 
-                                   stderr=subprocess.PIPE, 
+        process = subprocess.Popen(['tailscale', 'funnel', str(port)],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
                                    text=True)
         for line in process.stdout:
             print(line, end='')
@@ -100,8 +152,8 @@ if __name__ == "__main__":
     if not os.path.exists(serve_dir):
         print(f"Error: Directory '{serve_dir}' does not exist.")
         sys.exit(1)
-
     os.chdir(serve_dir)
+
     print(f"Serving directory: {serve_dir}")
 
     password = None
@@ -114,4 +166,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     funnel_process = run_funnel(port)
+
     run_server(port, use_auth, password)
