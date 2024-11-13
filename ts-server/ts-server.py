@@ -90,10 +90,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="File sharing server with optional authentication.")
     parser.add_argument("port", type=int, nargs="?", default=8080, help="Port to run the server on (default: 8080)")
     parser.add_argument("--auth", action="store_true", help="Enable basic authentication")
+    parser.add_argument("--dir", type=str, default=".", help="Directory to serve (default: current directory)")
     args = parser.parse_args()
 
     port = args.port
     use_auth = args.auth
+    serve_dir = os.path.abspath(args.dir)
+
+    if not os.path.exists(serve_dir):
+        print(f"Error: Directory '{serve_dir}' does not exist.")
+        sys.exit(1)
+
+    os.chdir(serve_dir)
+    print(f"Serving directory: {serve_dir}")
 
     password = None
     if use_auth:
