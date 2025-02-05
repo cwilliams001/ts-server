@@ -1,30 +1,35 @@
 # Secure File Sharing and Uploads with Tailscale Funnel
 
-This project provides a simple and secure way to serve files and accept file uploads over the internet using Python's built-in HTTP server and **Tailscale Funnel**. Optional authentication allows restricted access to prevent unauthorized file downloads and uploads.
+This project provides a simple and secure way to share files and accept file uploads over the internet using Python’s built-in HTTP server and **Tailscale Funnel**. The updated server now features an enhanced HTML upload interface with drag & drop support, real-time progress feedback, and a JSON API for listing available files.
 
 ## 🚀 Features
-- **Easy File Sharing:** Share files using Python’s `SimpleHTTPRequestHandler`.
-- **Secure, Public Access via Tailscale Funnel:** Integrated with **Tailscale Funnel** to expose the server securely to the public.
-- **File Uploads with Dynamic Filenames:** Supports file uploads and saves uploaded files with their original names.
-- **Optional Basic Authentication:** Protect your shared content with basic authentication (username & password).
-- **Customizable:** Set the port and the directory to serve or upload files to.
+- **Enhanced File Sharing & Uploads:**
+  - Serve files from any directory using Python’s built-in HTTP server.
+  - Upload files via an intuitive HTML interface that supports drag & drop, multiple file selection, and real-time progress updates.
+- **Secure Public Access via Tailscale Funnel:**
+  - Expose your server safely to the internet using **Tailscale Funnel**.
+- **Optional Basic Authentication:**
+  - Protect your server with HTTP Basic authentication. When enabled, a random password is generated at startup.
+- **JSON File Listing API:**
+  - Access a JSON-formatted list of files (name and size) by visiting the `/list` endpoint.
+- **Customizable:**
+  - Easily set the port and the directory to serve/upload files from.
 
 ---
 
 ## 📝 Prerequisites
-Make sure the following are installed and set up:
-
-- Python 3.6+  
-- **Tailscale** installed and configured on your system (with **Tailscale Funnel** feature enabled).
-- If running under root is not preferred, run Tailscale as a non-root operator (example: `'tailscale up --operator=$USER'`).
+Ensure you have the following installed and set up:
+- **Python 3.6+**
+- **Tailscale** with **Tailscale Funnel** enabled.  
+  _Tip: If you prefer not to run as root, run Tailscale as a non-root operator (e.g., `tailscale up --operator=$USER`)._
 
 ---
 
 ## 📥 Installation
 
-1. **Clone the repository** or manually download the `ts-server.py` script.
-2. Ensure you have **Python 3.6 or later** installed.
-3. Make sure **Tailscale** is installed and configured on your system.
+1. **Clone the repository** or download the `ts-server.py` script.
+2. Make sure you have **Python 3.6 or later** installed.
+3. Install and configure **Tailscale** on your system.
 
 ---
 
@@ -36,150 +41,186 @@ Run the script from any directory:
 sudo python3 ts-server.py [port] [--auth] [--dir PATH]
 ```
 
-- **`[port]` [optional]**: Specify the port to use (default: 8080).
-- **`--auth` [optional]**: Enables basic authentication for added security.
-- **`--dir PATH` [optional]**: Specify which directory to serve / save files to. Defaults to the current directory.
+- **`[port]` [optional]:** Port to run the server on (default: 8080).
+- **`--auth` [optional]:** Enable basic authentication. When used, the server will generate and display a random password.
+- **`--dir PATH` [optional]:** Specify the directory to serve and save files (default: current directory).
 
-### 📂 Example Scenarios:
+### 📂 Example Scenarios
 
 1. **Serve the current directory** on the default port (8080):
    ```bash
    sudo python3 ts-server.py
    ```
 
-2. **Serve files from a custom directory** (e.g., `/home/user/Documents`) on a specified port (9000):
+2. **Serve files from a custom directory** (e.g., `/home/user/Documents`) on a specific port (9000):
    ```bash
    sudo python3 ts-server.py 9000 --dir /home/user/Documents
    ```
 
-3. **Add basic authentication** with random password generation, serving the current directory:
+3. **Enable basic authentication** (serving the current directory):
    ```bash
    sudo python3 ts-server.py --auth
    ```
-
-   Output:
-   ```
-   Generated Credentials:
-   Username: user
-   Password: FjK2kjsdaT2M
+   On startup, the terminal will display something like:
+   ```bash
+   [INFO] Serving directory: /current/directory
+   [INFO] Generated credentials - Username: user, Password: SPx8gDJdTVvp
+   [INFO] Available on the internet:
+   [INFO]
+   [INFO] https://your-funnel-url.ts.net/
+   [INFO] Share this link: https://your-funnel-url.ts.net/
+   [INFO] ==================================================
+   [INFO] Server Information:
+   [INFO] --------------------------------------------------
+   [INFO] Directory: /current/directory
+   [INFO] Port: 8080
+   [INFO]
+   [INFO] Authentication Required:
+   [INFO] --------------------------------------------------
+   [INFO] Username: user
+   [INFO] Password: SPx8gDJdTVvp
+   [INFO] ==================================================
+   
    ```
 
 ---
 
-## 🔄 Uploading Files
+## 🌐 Web Interface & API Endpoints
 
-Users can upload files to the server. The uploaded files will be saved with their **original filenames** in the directory being served.
+### HTML Upload Page
+- **Access:** Open `https://<your-funnel-url>/` in your browser.
+- **Features:**
+  - Drag & drop file uploads.
+  - Multiple file selection.
+  - Real-time upload progress.
+  - Dynamic refresh of the file list.
 
-### Uploading Files Using `curl`:
+### JSON File Listing
+- **Endpoint:** `https://<your-funnel-url>/list`
+- **Response:** A JSON array where each object contains the `name` and `size` (in bytes) of a file.
+
+### File Download
+- Download files by clicking on the file links in the HTML interface or directly visiting `https://<your-funnel-url>/<filename>`.
+
+---
+
+## 🔄 Uploading Files via Command Line
+
+You can upload files using `curl` as well:
 
 #### With Authentication:
-If **authentication** is enabled, the following command will upload a file:
 ```bash
-curl -u user:generated_password -X POST -F "file=@/path/to/your/test-file.txt" https://your-funnel-url/
+curl -u user:<generated_password> -X POST -F "file=@/path/to/your/file.txt" https://<your-funnel-url>/
 ```
 
 #### Without Authentication:
-If no authentication is enabled:
 ```bash
-curl -X POST -F "file=@/path/to/your/test-file.txt" https://your-funnel-url/
+curl -X POST -F "file=@/path/to/your/file.txt" https://<your-funnel-url>/
 ```
 
 ---
 
 ## 🔑 Authentication
 
-If launched with the `--auth` flag, the server will generate a **random password** and require basic authentication (username: **user**, password: generated). The credentials will be shown in the terminal where the server is running.
-
-- Example credentials:
-  ```bash
-  Username: user
-  Password: FjK2kjsdaT2M
-  ```
-
----
-
-## 🗂️ Accessing Shared and Uploaded Files
-
-To access shared and uploaded files, users can use the **Tailscale Funnel** link provided in the server’s terminal output.
-
-- **Download via Browser**: Visit the link in a web browser to browse or download files.
-- **Download via `curl`** (with authentication):
-  ```bash
-  curl -u user:generated_password https://your-funnel-url/test-file.txt -O
-  ```
-
-### Download Example:
-```bash
-curl -u user:FjK2kjsdaT2M https://your-funnel-url/test-file.txt -O
-```
+When you launch the server with the `--auth` flag, it generates a random password and requires basic authentication:
+- **Username:** user
+- **Password:** (Displayed in the terminal on startup)
 
 ---
 
 ## 🛑 Stopping the Server
 
-To stop both the server and the **Tailscale Funnel**, press `Ctrl + C` in the terminal where the Python server is running. This will terminate the Python HTTP server and reset the Funnel.
+To stop the HTTP server and the Tailscale Funnel process, press `Ctrl + C` in the terminal where the server is running. This will gracefully terminate both the server and the funnel.
 
 ---
 
 ## ⛑️ Security Considerations
 
-- **Use authentication** for private or sensitive file sharing.
-- Be cautious about **what files you're serving** or accepting via uploads.
-- **Basic Authentication** sends credentials in base64, so it’s recommended to enable HTTPS or use it within trusted networks via Tailscale.
-- **Sanitization**: Uploaded files will be sanitized to prevent directory traversal attacks.
+- **Authentication:** Enable basic authentication when sharing sensitive or private files.
+- **HTTPS:** While Tailscale Funnel secures the connection, keep in mind that Basic Authentication transmits credentials in Base64. Use it within trusted networks or over HTTPS.
+- **Filename Sanitization:** Uploaded filenames are sanitized to prevent directory traversal attacks.
+- **Content Control:** Only serve directories and files that you trust.
 
 ---
 
 ## 🆚 Troubleshooting
 
-- **Ensure Tailscale Funnel is active**: Confirm that **Tailscale Funnel** is enabled and running.
-- **Authentication Issues**: Double-check that the password generated at startup is being used correctly when uploading or downloading files.
-- **File uploads failing**: Make sure you are using `multipart/form-data` when uploading with `curl` or Python.
+- **Tailscale Funnel Issues:**  
+  Ensure Tailscale Funnel is active and properly configured.
+- **Authentication Errors:**  
+  Double-check that you’re using the correct generated password.
+- **File Upload Failures:**  
+  Verify that your file upload requests are encoded as `multipart/form-data`.
 
 ---
 
 ## Global Installation (Optional)
 
-To run the script globally from anywhere on your system:
-1. Create a **symbolic link** to the script:
+To run the script from anywhere on your system:
+
+1. Create a symbolic link to the script:
    ```bash
    sudo ln -s /path/to/ts-server.py /usr/local/bin/ts-server
    ```
-
-   Then, use it like this:
+   Then use:
    ```bash
    sudo ts-server [arguments]
    ```
 
-2. Alternatively, add the script's folder to your **system PATH** by adding the following line to `.bashrc` or `.zshrc`:
+2. Alternatively, add the script’s directory to your system PATH by adding the following line to your `.bashrc` or `.zshrc`:
    ```bash
    export PATH=$PATH:/path/to/your/scripts
    ```
 
-After this setup, you can run the server from any directory.
-
 ---
 
-## 🌐 Additional Resources
+## 🌟 Additional Resources
 
-Learn more about **Tailscale Funnel** and its setup from the official [Tailscale documentation](https://tailscale.com/kb/1223/tailscale-funnel/).
+- [Tailscale Funnel Documentation](https://tailscale.com/kb/1223/tailscale-funnel/)
+- [Python HTTP Server Documentation](https://docs.python.org/3/library/http.server.html)
 
 ---
 
 ### Example Full Workflow
 
-1. **Start server with authentication**:
+1. **Start the server with authentication:**
    ```bash
    sudo python3 ts-server.py --auth
    ```
-
-2. **Upload a file**:
-   ```bash
-   curl -u user:FjK2kjsdaT2M -X POST -F "file=@/path/to/your/test-file.txt" https://your-funnel-url/
+   The terminal will display:
+   ```
+   [INFO] Serving directory: /current/directory
+   [INFO] Generated credentials - Username: user, Password: SPx8gDJdTVvp
+   [INFO] Available on the internet:
+   [INFO]
+   [INFO] https://your-funnel-url.ts.net/
+   [INFO] Share this link: https://your-funnel-url.ts.net/
+   [INFO] ==================================================
+   [INFO] Server Information:
+   [INFO] --------------------------------------------------
+   [INFO] Directory: /current/directory
+   [INFO] Port: 8080
+   [INFO]
+   [INFO] Authentication Required:
+   [INFO] --------------------------------------------------
+   [INFO] Username: user
+   [INFO] Password: SPx8gDJdTVvp
+   [INFO] ==================================================
    ```
 
-3. **Download a file**:
+2. **Upload a file via the HTML interface:**
+   - Open `https://<your-funnel-url>/` in your browser.
+   - Drag and drop your file(s) into the upload area and click "Upload Files".
+
+3. **Upload a file via `curl` (with authentication):**
    ```bash
-   curl -u user:FjK2kjsdaT2M https://your-funnel-url/test-file.txt -O
+   curl -u user:<generated_password> -X POST -F "file=@/path/to/your/file.txt" https://<your-funnel-url>/
    ```
+
+4. **Download a file:**
+   - From the browser: Click the file link in the HTML interface.
+   - From the command line:
+     ```bash
+     curl -u user:<generated_password> https://<your-funnel-url>/file.txt -O
+     ```
 
