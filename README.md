@@ -2,6 +2,8 @@
 
 This project provides a simple and secure way to share files and accept file uploads over the internet using Python’s built-in HTTP server and **Tailscale Funnel**. The updated server now features an enhanced HTML upload interface with drag & drop support, real-time progress feedback, and a JSON API for listing available files.
 
+![File Server Screenshot](screenshot.png)
+
 ## 🚀 Features
 - **Enhanced File Sharing & Uploads:**
   - Serve files from any directory using Python’s built-in HTTP server.
