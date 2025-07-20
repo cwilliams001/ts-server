@@ -11,13 +11,50 @@ import argparse
 import logging
 import shutil
 import atexit
+import hmac
+import hashlib
+import tempfile
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from functools import partial
-import cgi
+from email.message import EmailMessage
+from email import message_from_bytes
 import json
 
 # Configure logging for consistent output
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+def parse_multipart_form_data(data, boundary):
+    """Parse multipart/form-data without using deprecated cgi module."""
+    parts = data.split(b'--' + boundary.encode())
+    files = []
+    
+    for part in parts:
+        if b'Content-Disposition: form-data' not in part:
+            continue
+            
+        # Split headers and content
+        if b'\r\n\r\n' in part:
+            headers_section, content = part.split(b'\r\n\r\n', 1)
+        else:
+            continue
+            
+        # Remove trailing boundary markers
+        content = content.rstrip(b'\r\n--')
+        
+        # Parse the Content-Disposition header
+        headers_text = headers_section.decode('utf-8', errors='ignore')
+        if 'filename=' in headers_text:
+            # Extract filename
+            filename_match = re.search(r'filename="([^"]*)"', headers_text)
+            if filename_match:
+                filename = filename_match.group(1)
+                if filename:  # Only add if filename is not empty
+                    files.append({
+                        'filename': filename,
+                        'content': content
+                    })
+    
+    return files
 
 def generate_password(length=12):
     """Generate a random password of the given length."""
@@ -31,21 +68,34 @@ class AuthHandler(SimpleHTTPRequestHandler):
         self.password = password
         super().__init__(*args, **kwargs)
 
+    def add_security_headers(self):
+        """Add security headers to prevent common attacks."""
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
+
     def do_AUTHHEAD(self):
         self.send_response(401)
         self.send_header('WWW-Authenticate', 'Basic realm="Restricted Access"')
         self.send_header('Content-type', 'text/html')
+        self.add_security_headers()
         self.end_headers()
 
     def authenticate(self, auth_header):
-        """Safely parse and validate the basic authentication header."""
+        """Safely parse and validate the basic authentication header with timing attack protection."""
         try:
             encoded_credentials = auth_header.split()[1]
             auth_decoded = base64.b64decode(encoded_credentials).decode('ascii')
             provided_username, provided_password = auth_decoded.split(':', 1)
-            return provided_username == self.username and provided_password == self.password
+            
+            # Use constant-time comparison to prevent timing attacks
+            username_valid = hmac.compare_digest(provided_username, self.username)
+            password_valid = hmac.compare_digest(provided_password, self.password)
+            
+            return username_valid and password_valid
         except Exception as e:
-            logging.warning("Failed to parse authentication header: %s", e)
+            logging.warning("Failed to parse authentication header")
             return False
 
     def do_GET(self):
@@ -62,6 +112,7 @@ class AuthHandler(SimpleHTTPRequestHandler):
             files = self.list_directory_json()
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
+            self.add_security_headers()
             self.end_headers()
             self.wfile.write(json.dumps(files).encode())
             return
@@ -95,7 +146,24 @@ class AuthHandler(SimpleHTTPRequestHandler):
 
     def sanitize_filename(self, filename):
         """Sanitize the filename to prevent directory traversal attacks."""
-        return os.path.basename(filename)
+        if not filename:
+            raise ValueError("Empty filename")
+        
+        # Remove any path components and dangerous characters
+        safe_filename = os.path.basename(filename)
+        
+        # Additional sanitization - remove dangerous characters
+        safe_filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', safe_filename)
+        
+        # Check for edge cases after sanitization
+        if not safe_filename or safe_filename in ['.', '..']:
+            safe_filename = f'uploaded_file_{secrets.token_hex(4)}'
+        
+        # Prevent hidden files and reserved names (check after edge case handling)
+        if safe_filename.startswith('.') or safe_filename.lower() in ['con', 'prn', 'aux', 'nul', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9']:
+            safe_filename = 'file_' + safe_filename
+        
+        return safe_filename
 
     def do_POST(self):
         """Handle POST requests for file uploads."""
@@ -113,31 +181,44 @@ class AuthHandler(SimpleHTTPRequestHandler):
 
         # Process the upload
         try:
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST'}
-            )
-
+            # Get content length
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_error(400, "No content provided")
+                return
+            
+            # Read the entire request body
+            post_data = self.rfile.read(content_length)
+            
+            # Extract boundary from Content-Type header
+            boundary_match = re.search(r'boundary=([^;]+)', content_type)
+            if not boundary_match:
+                self.send_error(400, "No boundary found in Content-Type")
+                return
+            
+            boundary = boundary_match.group(1).strip('"')
+            
+            # Parse multipart form data
+            uploaded_files = parse_multipart_form_data(post_data, boundary)
+            
             files_received = False
-            for field in form.keys():
-                field_item = form[field]
-                if field_item.filename:
-                    original_filename = self.sanitize_filename(field_item.filename)
-                    
-                    try:
-                        with open(original_filename, 'wb') as f:
-                            shutil.copyfileobj(field_item.file, f)
-                        logging.info("Received and saved file: %s", original_filename)
-                        files_received = True
-                    except Exception as e:
-                        logging.error("Error saving file %s: %s", original_filename, e)
-                        self.send_error(500, f"Error saving file {original_filename}")
-                        return
+            for file_data in uploaded_files:
+                original_filename = self.sanitize_filename(file_data['filename'])
+                
+                try:
+                    with open(original_filename, 'wb') as f:
+                        f.write(file_data['content'])
+                    logging.info("Received and saved file: %s", original_filename)
+                    files_received = True
+                except Exception as e:
+                    logging.error("Error saving file %s: %s", original_filename, e)
+                    self.send_error(500, "Error saving file")
+                    return
 
             if files_received:
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
+                self.add_security_headers()
                 self.end_headers()
                 self.wfile.write(b"File(s) received and saved successfully.\n")
             else:
@@ -546,6 +627,7 @@ class AuthHandler(SimpleHTTPRequestHandler):
     """
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
+        self.add_security_headers()
         self.end_headers()
         self.wfile.write(html.encode())
 
