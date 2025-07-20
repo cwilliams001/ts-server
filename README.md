@@ -139,9 +139,58 @@ To stop the HTTP server and the Tailscale Funnel process, press `Ctrl + C` in th
 ## ⛑️ Security Considerations
 
 - **Authentication:** Enable basic authentication when sharing sensitive or private files.
+  - Uses constant-time comparison to prevent timing attacks
+  - Generates cryptographically secure random passwords
 - **HTTPS:** While Tailscale Funnel secures the connection, keep in mind that Basic Authentication transmits credentials in Base64. Use it within trusted networks or over HTTPS.
-- **Filename Sanitization:** Uploaded filenames are sanitized to prevent directory traversal attacks.
+- **Filename Sanitization:** Uploaded filenames are comprehensively sanitized to prevent:
+  - Directory traversal attacks (../../../etc/passwd)
+  - Dangerous characters (<>:"/\|?*)
+  - Hidden files and reserved system names
+  - Empty or malformed filenames
+- **Security Headers:** Implements multiple security headers:
+  - X-Content-Type-Options: nosniff
+  - X-Frame-Options: DENY  
+  - X-XSS-Protection: 1; mode=block
+  - Referrer-Policy: strict-origin-when-cross-origin
+- **Error Handling:** Prevents information disclosure through sanitized error messages
 - **Content Control:** Only serve directories and files that you trust.
+
+---
+
+## 🧪 Testing
+
+### Running Tests
+
+The project includes a comprehensive test suite to verify security features and functionality:
+
+```bash
+# Install test dependencies
+pip3 install -r requirements-dev.txt
+
+# Run all tests
+python3 -m pytest tests/ -v
+
+# Run with coverage report
+python3 -m pytest tests/ -v --cov=ts-server.py --cov-report=html
+```
+
+### Test Coverage
+
+The test suite covers:
+- **Authentication security**: Timing attack resistance, credential validation
+- **Filename sanitization**: Path traversal prevention, dangerous character handling
+- **Security headers**: XSS protection, clickjacking prevention  
+- **Input validation**: Malformed requests, edge cases
+- **Core functionality**: File listing, directory handling
+
+### Security Testing
+
+Key security tests include:
+- Path traversal attack prevention (`../../../etc/passwd`)
+- Dangerous character sanitization (`<>:"/\|?*`)
+- Authentication timing attack resistance
+- Hidden file protection
+- Reserved filename handling
 
 ---
 
