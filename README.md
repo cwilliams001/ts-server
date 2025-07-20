@@ -21,7 +21,7 @@ This project provides a simple and secure way to share files and accept file upl
 
 ## 📝 Prerequisites
 Ensure you have the following installed and set up:
-- **Python 3.6+**
+- **Python 3.6+** (Compatible with Python 3.11+ / 3.13+ - no deprecated dependencies)
 - **Tailscale** with **Tailscale Funnel** enabled.  
   _Tip: If you prefer not to run as root, run Tailscale as a non-root operator (e.g., `tailscale up --operator=$USER`)._
 

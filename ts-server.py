@@ -13,13 +13,48 @@ import shutil
 import atexit
 import hmac
 import hashlib
+import tempfile
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from functools import partial
-import cgi
+from email.message import EmailMessage
+from email import message_from_bytes
 import json
 
 # Configure logging for consistent output
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+def parse_multipart_form_data(data, boundary):
+    """Parse multipart/form-data without using deprecated cgi module."""
+    parts = data.split(b'--' + boundary.encode())
+    files = []
+    
+    for part in parts:
+        if b'Content-Disposition: form-data' not in part:
+            continue
+            
+        # Split headers and content
+        if b'\r\n\r\n' in part:
+            headers_section, content = part.split(b'\r\n\r\n', 1)
+        else:
+            continue
+            
+        # Remove trailing boundary markers
+        content = content.rstrip(b'\r\n--')
+        
+        # Parse the Content-Disposition header
+        headers_text = headers_section.decode('utf-8', errors='ignore')
+        if 'filename=' in headers_text:
+            # Extract filename
+            filename_match = re.search(r'filename="([^"]*)"', headers_text)
+            if filename_match:
+                filename = filename_match.group(1)
+                if filename:  # Only add if filename is not empty
+                    files.append({
+                        'filename': filename,
+                        'content': content
+                    })
+    
+    return files
 
 def generate_password(length=12):
     """Generate a random password of the given length."""
@@ -146,27 +181,39 @@ class AuthHandler(SimpleHTTPRequestHandler):
 
         # Process the upload
         try:
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST'}
-            )
-
+            # Get content length
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_error(400, "No content provided")
+                return
+            
+            # Read the entire request body
+            post_data = self.rfile.read(content_length)
+            
+            # Extract boundary from Content-Type header
+            boundary_match = re.search(r'boundary=([^;]+)', content_type)
+            if not boundary_match:
+                self.send_error(400, "No boundary found in Content-Type")
+                return
+            
+            boundary = boundary_match.group(1).strip('"')
+            
+            # Parse multipart form data
+            uploaded_files = parse_multipart_form_data(post_data, boundary)
+            
             files_received = False
-            for field in form.keys():
-                field_item = form[field]
-                if field_item.filename:
-                    original_filename = self.sanitize_filename(field_item.filename)
-                    
-                    try:
-                        with open(original_filename, 'wb') as f:
-                            shutil.copyfileobj(field_item.file, f)
-                        logging.info("Received and saved file: %s", original_filename)
-                        files_received = True
-                    except Exception as e:
-                        logging.error("Error saving file %s: %s", original_filename, e)
-                        self.send_error(500, "Error saving file")
-                        return
+            for file_data in uploaded_files:
+                original_filename = self.sanitize_filename(file_data['filename'])
+                
+                try:
+                    with open(original_filename, 'wb') as f:
+                        f.write(file_data['content'])
+                    logging.info("Received and saved file: %s", original_filename)
+                    files_received = True
+                except Exception as e:
+                    logging.error("Error saving file %s: %s", original_filename, e)
+                    self.send_error(500, "Error saving file")
+                    return
 
             if files_received:
                 self.send_response(200)
