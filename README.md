@@ -1,10 +1,21 @@
-# Secure File Sharing and Uploads with Tailscale Funnel
+# TS-Server: Secure File Sharing with Tailscale Funnel
 
-This project provides a simple and secure way to share files and accept file uploads over the internet using Python’s built-in HTTP server and **Tailscale Funnel**. The updated server now features an enhanced HTML upload interface with drag & drop support, real-time progress feedback, and a JSON API for listing available files.
+A simple and secure way to share files and accept uploads over the internet using **Tailscale Funnel**. Available in both **Python** and **Go** versions.
 
 ![File Server Screenshot](screenshot.png)
 
-## 🚀 Features
+## Available Versions
+
+| Version | Best For | Size | Dependencies |
+|---------|----------|------|--------------|
+| **[Python](#python-version)** | Quick setup, already have Python/Tailscale | ~10KB script | Python 3.6+, Tailscale daemon |
+| **[Go](#go-version)** | Cross-platform binary, multi-system deployment | 26MB binary | None (self-contained) |
+
+**Quick Start:**
+- **Python users:** Use `main` branch → [Jump to Python docs](#python-version)
+- **Go users:** Use `feature/go-tsnet-rewrite` branch → [Jump to Go docs](#go-version)
+
+## Core Features (Both Versions)
 - **Enhanced File Sharing & Uploads:**
   - Serve files from any directory using Python’s built-in HTTP server.
   - Upload files via an intuitive HTML interface that supports drag & drop, multiple file selection, and real-time progress updates.
@@ -19,23 +30,23 @@ This project provides a simple and secure way to share files and accept file upl
 
 ---
 
-## 📝 Prerequisites
+# Python Version
+
+The Python version is a lightweight script that uses your system's Tailscale installation.
+
+## Prerequisites
 Ensure you have the following installed and set up:
 - **Python 3.6+** (Compatible with Python 3.11+ / 3.13+ - no deprecated dependencies)
 - **Tailscale** with **Tailscale Funnel** enabled.  
   _Tip: If you prefer not to run as root, run Tailscale as a non-root operator (e.g., `tailscale up --operator=$USER`)._
 
----
-
-## 📥 Installation
+## Installation (Python)
 
 1. **Clone the repository** or download the `ts-server.py` script.
 2. Make sure you have **Python 3.6 or later** installed.
 3. Install and configure **Tailscale** on your system.
 
----
-
-## ⚙️ Usage
+## Usage (Python)
 
 Run the script from any directory:
 
@@ -275,3 +286,175 @@ To run the script from anywhere on your system:
      curl -u user:<generated_password> https://<your-funnel-url>/file.txt -O
      ```
 
+---
+
+# Go Version
+
+The Go version is a self-contained binary with embedded Tailscale (tsnet). No external dependencies required!
+
+**Branch:** `feature/go-tsnet-rewrite`
+
+**[Full Go Documentation →](README-GO.md)**
+
+## Quick Start (Go)
+
+```bash
+# Switch to Go branch
+git checkout feature/go-tsnet-rewrite
+
+# Build (requires Go 1.21+)
+go build -ldflags="-s -w" -o ts-server
+
+# Run with OAuth (recommended)
+export TS_OAUTH_CLIENT_ID=your-client-id
+export TS_OAUTH_CLIENT_SECRET=your-client-secret
+./ts-server --dir ~/files
+
+# Or run with auth key
+TS_AUTHKEY=tskey-auth-xxx ./ts-server --dir ~/files
+```
+
+## Key Differences
+
+| Feature | Python Version | Go Version |
+|---------|----------------|------------|
+| **Dependencies** | Python + Tailscale daemon | None (single binary) |
+| **Platforms** | Any with Python | Linux, macOS, Windows, ARM, BSD |
+| **Binary Size** | N/A | 26MB (stripped) |
+| **Tailscale Setup** | System installation required | Embedded (tsnet) |
+| **OAuth Support** | No | Yes |
+| **Root Required** | Yes (for funnel) | No |
+| **Deployment** | Copy script + install deps | Copy single binary |
+
+## Why Choose Go Version?
+
+- **Cross-platform binaries** for Windows, macOS, Linux, ARM
+- **No Tailscale installation needed** - tsnet is embedded
+- **OAuth authentication** - easier multi-system deployment
+- **No sudo required** - tsnet handles privileged ports
+- **Colored terminal output** with ASCII art
+- **HTTP access logs** with IP, method, status codes
+
+---
+
+# Authentication Setup
+
+Both versions support Tailscale authentication. The Go version also supports OAuth for easier multi-system deployments.
+
+## Option 1: OAuth Client (Go Only - Recommended for Multiple Systems)
+
+OAuth credentials work across all your systems without copying keys around.
+
+### Setup OAuth
+
+1. **Create OAuth Client:**
+   - Visit: https://login.tailscale.com/admin/settings/oauth
+   - Click "Generate OAuth client"
+   - **Scopes:** `devices:write`
+   - **Tags:** `tag:fileserver` (create if doesn't exist)
+   - Copy **Client ID** and **Client Secret**
+
+2. **Configure Environment Variables:**
+   ```bash
+   # Add to ~/.bashrc or ~/.zshrc
+   export TS_OAUTH_CLIENT_ID=k123abc...
+   export TS_OAUTH_CLIENT_SECRET=tscs-k456def...
+   ```
+
+3. **Run on Any System:**
+   ```bash
+   # Go version will automatically use OAuth credentials
+   ./ts-server --dir ~/files
+   ```
+
+**Benefits:**
+- Same credentials work on all systems
+- Centrally revokable from Tailscale admin
+- Auto-generates ephemeral auth keys
+- No manual key management
+
+## Option 2: Auth Key (Both Versions)
+
+Auth keys are simpler but need to be copied to each system.
+
+### Generate Auth Key
+
+1. **Create Key:**
+   - Visit: https://login.tailscale.com/admin/settings/keys
+   - Click "Generate auth key"
+   - **Options:**
+     - Reusable: Yes (if using on multiple systems)
+     - Ephemeral: Yes (recommended - auto-cleanup)
+     - Expiration: 90 days (or custom)
+   - Copy the generated key
+
+2. **Use the Key:**
+
+   **Python version:**
+   ```bash
+   # Tailscale must already be running on the system
+   # Auth key is not needed - uses system Tailscale
+   sudo python3 ts-server.py --dir ~/files
+   ```
+
+   **Go version:**
+   ```bash
+   TS_AUTHKEY=tskey-auth-xxx ./ts-server --dir ~/files
+   ```
+
+**Limitations:**
+- Must copy key to each system
+- Keys expire (1-90 days)
+- No central revocation (must delete from admin panel)
+
+## Option 3: Interactive Login (Go Only)
+
+No credentials needed - just click a link.
+
+```bash
+# Run without any auth
+./ts-server --dir ~/files
+
+# Output will show:
+# [*] To authenticate, visit: https://login.tailscale.com/a/xyz123
+# Click the link and authenticate in your browser
+```
+
+**Best for:**
+- Testing/development
+- One-time usage
+- When you don't have OAuth/auth key set up
+
+---
+
+## Recommendation Matrix
+
+| Your Situation | Use This |
+|----------------|----------|
+| **Have Python + Tailscale already installed** | Python version with system Tailscale |
+| **Need Windows/macOS support** | Go version |
+| **Multiple systems, want easy deployment** | Go version + OAuth |
+| **Quick one-time file share** | Either version (Python is faster to start) |
+| **Don't want to install Tailscale daemon** | Go version (tsnet embedded) |
+| **Prefer lightweight scripts** | Python version |
+| **Want colored logs and modern UI** | Go version |
+
+---
+
+## Additional Resources
+
+- [Tailscale Funnel Documentation](https://tailscale.com/kb/1223/tailscale-funnel/)
+- [Tailscale OAuth Clients](https://tailscale.com/kb/1215/oauth-clients/)
+- [Tailscale Auth Keys](https://tailscale.com/kb/1085/auth-keys/)
+- [tsnet Documentation](https://tailscale.com/kb/1244/tsnet)
+- [Go Version Full Docs](README-GO.md)
+
+---
+
+## Contributing
+
+Contributions welcome! Please test both Python and Go versions if making changes to core functionality.
+
+## License
+
+[Your License Here]
