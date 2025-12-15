@@ -5,6 +5,7 @@ set -e
 
 VERSION="2.0.0"
 OUTPUT_DIR="./build"
+SOURCE_DIR="./cmd/ts-server"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
@@ -37,9 +38,9 @@ for platform in "${platforms[@]}"; do
 
     echo "Building for ${GOOS}/${GOARCH}..."
 
-    env GOOS=$GOOS GOARCH=$GOARCH mise exec -- go build \
-        -ldflags="-s -w" \
-        -o "${OUTPUT_DIR}/${output_name}"
+    (cd "$SOURCE_DIR" && env GOOS=$GOOS GOARCH=$GOARCH go build \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o "../../${OUTPUT_DIR}/${output_name}")
 
     # Calculate size
     size=$(du -h "${OUTPUT_DIR}/${output_name}" | cut -f1)

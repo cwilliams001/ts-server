@@ -4,6 +4,9 @@
 *.dll
 *.so
 *.dylib
+ts-server
+ts-server-*
+!ts-server.py
 
 # Test binary, built with `go test -c`
 *.test
@@ -13,6 +16,7 @@
 
 # Go workspace file
 go.work
+go.work.sum
 
 # Build directory
 build/

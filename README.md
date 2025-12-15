@@ -325,19 +325,21 @@ To run the script from anywhere on your system:
 ## Quick Start (Go)
 
 ```bash
-# Switch to Go branch
-git checkout feature/go-tsnet-rewrite
+# Download pre-built binary from releases
+# Or build from source:
 
 # Build (requires Go 1.21+)
+cd cmd/ts-server
 go build -ldflags="-s -w" -o ts-server
+cd ../..
 
 # Run with OAuth (recommended)
 export TS_OAUTH_CLIENT_ID=your-client-id
 export TS_OAUTH_CLIENT_SECRET=your-client-secret
-./ts-server --dir ~/files
+./cmd/ts-server/ts-server --dir ~/files
 
 # Or run with auth key
-TS_AUTHKEY=tskey-auth-xxx ./ts-server --dir ~/files
+TS_AUTHKEY=tskey-auth-xxx ./cmd/ts-server/ts-server --dir ~/files
 ```
 
 ## Key Differences
