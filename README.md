@@ -1,6 +1,16 @@
-# TS-Server: Secure File Sharing with Tailscale Funnel
+```
+ _____ ____        ____
+|_   _/ ___|      / ___|  ___ _ ____   _____ _ __
+  | | \___ \ _____\___ \ / _ \ '__\ \ / / _ \ '__|
+  | |  ___) |_____|___) |  __/ |   \ V /  __/ |
+  |_| |____/      |____/ \___|_|    \_/ \___|_|
+```
 
-A simple and secure way to share files and accept uploads over the internet using **Tailscale Funnel**. Available in both **Python** and **Go** versions.
+# TS-Server
+
+**Secure file sharing and uploads over Tailscale Funnel**
+
+A lightweight file server exposing your local directories to the internet via Tailscale's secure network. Available in both Python and Go implementations.
 
 ![File Server Screenshot](screenshot.png)
 
@@ -12,8 +22,15 @@ A simple and secure way to share files and accept uploads over the internet usin
 | **[Go](#go-version)** | Cross-platform binary, multi-system deployment | 26MB binary | None (self-contained) |
 
 **Quick Start:**
-- **Python users:** Use `main` branch → [Jump to Python docs](#python-version)
-- **Go users:** Use `feature/go-tsnet-rewrite` branch → [Jump to Go docs](#go-version)
+```bash
+# Python (requires Tailscale daemon)
+sudo python3 ts-server.py --dir ~/files
+
+# Go (self-contained binary)
+./ts-server --dir ~/files
+```
+
+**[→ Python Documentation](#python-version)** | **[→ Go Documentation](#go-version)** | **[→ Authentication Setup](#authentication-setup)**
 
 ## Core Features (Both Versions)
 - **Enhanced File Sharing & Uploads:**
@@ -31,6 +48,12 @@ A simple and secure way to share files and accept uploads over the internet usin
 ---
 
 # Python Version
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Lightweight script using system Tailscale daemon               │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 The Python version is a lightweight script that uses your system's Tailscale installation.
 
@@ -58,7 +81,7 @@ sudo python3 ts-server.py [port] [--auth] [--dir PATH]
 - **`--auth` [optional]:** Enable basic authentication. When used, the server will generate and display a random password.
 - **`--dir PATH` [optional]:** Specify the directory to serve and save files (default: current directory).
 
-### 📂 Example Scenarios
+### Example Scenarios
 
 1. **Serve the current directory** on the default port (8080):
    ```bash
@@ -98,7 +121,7 @@ sudo python3 ts-server.py [port] [--auth] [--dir PATH]
 
 ---
 
-## 🌐 Web Interface & API Endpoints
+## Web Interface & API Endpoints
 
 ### HTML Upload Page
 - **Access:** Open `https://<your-funnel-url>/` in your browser.
@@ -117,7 +140,7 @@ sudo python3 ts-server.py [port] [--auth] [--dir PATH]
 
 ---
 
-## 🔄 Uploading Files via Command Line
+## Uploading Files via Command Line
 
 You can upload files using `curl` as well:
 
@@ -133,7 +156,7 @@ curl -X POST -F "file=@/path/to/your/file.txt" https://<your-funnel-url>/
 
 ---
 
-## 🔑 Authentication
+## Authentication
 
 When you launch the server with the `--auth` flag, it generates a random password and requires basic authentication:
 - **Username:** user
@@ -141,13 +164,13 @@ When you launch the server with the `--auth` flag, it generates a random passwor
 
 ---
 
-## 🛑 Stopping the Server
+## Stopping the Server
 
 To stop the HTTP server and the Tailscale Funnel process, press `Ctrl + C` in the terminal where the server is running. This will gracefully terminate both the server and the funnel.
 
 ---
 
-## ⛑️ Security Considerations
+## Security Considerations
 
 - **Authentication:** Enable basic authentication when sharing sensitive or private files.
   - Uses constant-time comparison to prevent timing attacks
@@ -168,7 +191,7 @@ To stop the HTTP server and the Tailscale Funnel process, press `Ctrl + C` in th
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Running Tests
 
@@ -205,7 +228,7 @@ Key security tests include:
 
 ---
 
-## 🆚 Troubleshooting
+## Troubleshooting
 
 - **Tailscale Funnel Issues:**  
   Ensure Tailscale Funnel is active and properly configured.
@@ -236,7 +259,7 @@ To run the script from anywhere on your system:
 
 ---
 
-## 🌟 Additional Resources
+## Additional Resources
 
 - [Tailscale Funnel Documentation](https://tailscale.com/kb/1223/tailscale-funnel/)
 - [Python HTTP Server Documentation](https://docs.python.org/3/library/http.server.html)
@@ -290,11 +313,14 @@ To run the script from anywhere on your system:
 
 # Go Version
 
-The Go version is a self-contained binary with embedded Tailscale (tsnet). No external dependencies required!
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Self-contained binary with embedded Tailscale (tsnet)          │
+│ No external dependencies required                              │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Branch:** `feature/go-tsnet-rewrite`
-
-**[Full Go Documentation →](README-GO.md)**
+**[→ Full Go Documentation](README-GO.md)**
 
 ## Quick Start (Go)
 
@@ -338,6 +364,12 @@ TS_AUTHKEY=tskey-auth-xxx ./ts-server --dir ~/files
 ---
 
 # Authentication Setup
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Three methods: OAuth (Go only) | Auth Keys | Interactive Login │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 Both versions support Tailscale authentication. The Go version also supports OAuth for easier multi-system deployments.
 
