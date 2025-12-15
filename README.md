@@ -379,23 +379,39 @@ Both versions support Tailscale authentication. The Go version also supports OAu
 
 OAuth credentials work across all your systems without copying keys around.
 
+### Prerequisites
+
+Before setting up OAuth, ensure Tailscale Funnel is enabled for your tailnet:
+- Visit: https://login.tailscale.com/admin/settings/general
+- Scroll to "Tailscale Funnel" section
+- Click "Enable Funnel" (if not already enabled)
+
 ### Setup OAuth
 
 1. **Create OAuth Client:**
    - Visit: https://login.tailscale.com/admin/settings/oauth
    - Click "Generate OAuth client"
-   - **Scopes:** `devices:write`
-   - **Tags:** `tag:fileserver` (create if doesn't exist)
+   - **Scopes Required:**
+     - **Keys > Auth Keys**: Select "Read or modify auth keys" (Write permission)
+   - **Tags:** `tag:fileserver` (create if doesn't exist - required for auth_keys scope)
    - Copy **Client ID** and **Client Secret**
 
-2. **Configure Environment Variables:**
+2. **Enable Funnel for the Tag:**
+   - Visit: https://login.tailscale.com/admin/acls/node-attributes
+   - Click "Add node attribute"
+   - **Target:** `tag:fileserver`
+   - **Attribute:** `funnel`
+   - Click "Save"
+   - This allows devices with the `tag:fileserver` tag to use Tailscale Funnel
+
+3. **Configure Environment Variables:**
    ```bash
    # Add to ~/.bashrc or ~/.zshrc
    export TS_OAUTH_CLIENT_ID=k123abc...
    export TS_OAUTH_CLIENT_SECRET=tscs-k456def...
    ```
 
-3. **Run on Any System:**
+4. **Run on Any System:**
    ```bash
    # Go version will automatically use OAuth credentials
    ./ts-server --dir ~/files
